@@ -1,5 +1,5 @@
 """
-Claude Analyzer
+Analyzed by LLM
 Uses the Anthropic API to generate an executive narrative from raw report data.
 """
 
