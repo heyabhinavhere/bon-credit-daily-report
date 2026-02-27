@@ -80,27 +80,37 @@ class AmplitudeClient:
         params = {"start": start, "end": end}
 
         print(f"[INFO] Exporting events for {date.strftime('%Y-%m-%d')}...")
-        resp = requests.get(
-            url,
-            auth=(self.api_key, self.secret_key),
-            params=params,
-            stream=True,
-            timeout=180,
-        )
-        resp.raise_for_status()
 
-        events = []
-        with gzip.GzipFile(fileobj=io.BytesIO(resp.content)) as gz:
-            for line in gz:
-                line = line.strip()
-                if line:
-                    try:
-                        events.append(json.loads(line))
-                    except json.JSONDecodeError:
-                        continue
+        last_err = None
+        for attempt in range(1, 4):
+            try:
+                resp = requests.get(
+                    url,
+                    auth=(self.api_key, self.secret_key),
+                    params=params,
+                    stream=True,
+                    timeout=420,  # 7 minutes — large exports can be slow
+                )
+                resp.raise_for_status()
 
-        print(f"[INFO] Fetched {len(events):,} raw events.")
-        return events
+                events = []
+                with gzip.GzipFile(fileobj=io.BytesIO(resp.content)) as gz:
+                    for line in gz:
+                        line = line.strip()
+                        if line:
+                            try:
+                                events.append(json.loads(line))
+                            except json.JSONDecodeError:
+                                continue
+
+                print(f"[INFO] Fetched {len(events):,} raw events.")
+                return events
+
+            except Exception as e:
+                last_err = e
+                print(f"[WARN] Attempt {attempt}/3 failed: {e}. Retrying...")
+
+        raise RuntimeError(f"Amplitude export failed after 3 attempts: {last_err}")
 
     # ─────────────────────────────────────────────────────────────────────────
     # Processing
