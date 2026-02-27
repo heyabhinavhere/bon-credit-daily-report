@@ -5,7 +5,7 @@ Sends the full structured report data to Claude and returns a narrative analysis
 
 import os
 import json
-import anthropic
+import requests
 from datetime import datetime
 
 
@@ -14,7 +14,7 @@ def analyze_with_claude(d: dict, report_date: datetime) -> dict:
     d: the full dict returned by AmplitudeClient.process_events()
     Returns: {executive_summary, highlights, watch_list, full_text}
     """
-    client   = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    api_key  = os.environ["OPENROUTER_API_KEY"]
     date_str = report_date.strftime("%A, %B %d, %Y")
 
     # Slim down the user table for Claude — cap at 50 to stay within tokens
@@ -119,33 +119,44 @@ Write three sections:
 
 ---
 EXECUTIVE SUMMARY
-2-3 paragraphs. Lead with the most important thing that happened. Cover the growth funnel, activation health, and anything that needs founder attention today. Be direct. Use specific numbers. End with one forward-looking sentence about what to watch.
+2-3 short paragraphs. Cover: DAU and session length, CredGPT users and % of DAU, payment success, new signups and cards/banks linked, churn. Numbers only. No interpretations, no "this signals", no "this suggests". Just what happened.
 
 ---
 KEY HIGHLIGHTS
-5-7 bullet points, each a concrete observation. Include: funnel conversion analysis, activation patterns in the new signup cohort, payment behaviour, engagement bright spots, and any positive signals worth noting. Each bullet = 1-2 sentences max.
+5-7 bullet points. Each bullet is one sentence with a number. Cover: DAU, CredGPT users, payment success rate, new signups, cards linked, banks linked, autopay setups, churn. No commentary.
 
 ---
 WATCH LIST
-3-4 items that need attention today. Include: drop-offs, failures, churn, fraud, anything where rates are poor or counts are surprising. For each, say what it is and what action to take. Be specific — not "monitor this", but "check X because Y".
+3-4 items that need attention. State the number and what to check. One sentence each. No analysis, no "this could indicate".
 
 ---
 Rules:
-- Use actual numbers from the data, not vague language.
-- Don't soften bad news. If something is bad, say it's bad.
-- Never say "it's important to note", "it's worth mentioning", "leveraging", or "delve".
-- Write in second person ("you had", "your funnel").
-- If churned > 0, that goes first or second in the Watch List.
-- If fraud_blocked > 0, call it out explicitly.
+- Numbers only. No insights, no commentary, no clever observations.
+- No phrases like "retention signal", "this suggests", "worth noting", "this means".
+- Write in second person ("you had", "your users").
+- Don't soften bad news — just state it plainly.
+- Never talk about onboarding or activation rates.
+- If churned > 0, list it first in the Watch List.
+- If fraud_blocked > 0, include it.
 """
 
-    message = client.messages.create(
-        model="claude-sonnet-4-5-20250929",
-        max_tokens=2000,
-        messages=[{"role": "user", "content": prompt}],
+    response = requests.post(
+        "https://openrouter.ai/api/v1/chat/completions",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "HTTP-Referer": "https://boncredit.ai",
+            "X-Title": "BON Credit Daily Report",
+            "Content-Type": "application/json",
+        },
+        json={
+            "model": "anthropic/claude-sonnet-4-5",
+            "max_tokens": 2000,
+            "messages": [{"role": "user", "content": prompt}],
+        },
     )
+    response.raise_for_status()
 
-    raw_text = message.content[0].text
+    raw_text = response.json()["choices"][0]["message"]["content"]
     sections = _parse_sections(raw_text)
 
     return {

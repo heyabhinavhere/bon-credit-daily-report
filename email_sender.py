@@ -34,85 +34,6 @@ def _pct_color(pct_str: str, good_above: int = 50) -> str:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Daily summary — human-readable paragraph, generated from data (no Claude)
-# ─────────────────────────────────────────────────────────────────────────────
-
-def _build_daily_summary(d: dict) -> str:
-    """
-    Auto-generated plain-English snapshot. Readable in under 30 seconds.
-    Shows up right under the header so founders get the gist before anything else.
-    """
-    signups   = d["new_signup_count"]
-    installs  = d["installs"]
-    dau       = d["dau"]
-    avg_sess  = d["avg_session_mins"]
-
-    # Full activation = card + bank linked
-    full_activation = sum(
-        1 for u in d["new_signups"]
-        if u["card_linked"] and u["bank_linked"]
-    )
-
-    # Sentences
-    parts = []
-
-    # Growth
-    if installs > 0:
-        parts.append(
-            f"You had <strong>{signups:,} new signup{'s' if signups != 1 else ''}</strong> "
-            f"from {installs:,} app install{'s' if installs != 1 else ''} "
-            f"({d['install_to_signup_rate']} install-to-signup rate)."
-        )
-    else:
-        parts.append(f"You had <strong>{signups:,} new signup{'s' if signups != 1 else ''}</strong> yesterday.")
-
-    # Activation
-    if signups > 0:
-        card_pct = round(d["card_success"] / signups * 100) if signups else 0
-        bank_pct = round(d["bank_success"] / signups * 100) if signups else 0
-        parts.append(
-            f"Of those, <strong>{d['card_success']} linked a card</strong> ({card_pct}%) "
-            f"and <strong>{d['bank_success']} linked a bank</strong> ({bank_pct}%) — "
-            f"<strong>{full_activation} fully activated</strong> (card + bank)."
-        )
-
-    # DAU & session
-    parts.append(
-        f"<strong>{dau:,} users</strong> were active in total, "
-        f"averaging <strong>{avg_sess} min</strong> per session."
-    )
-
-    # Payments
-    if d["bill_pay_initiated"] > 0:
-        parts.append(
-            f"Bill payments: <strong>{d['bill_pay_success']:,} succeeded</strong> "
-            f"out of {d['bill_pay_initiated']:,} initiated ({d['bill_pay_success_rate']} rate)."
-        )
-
-    # Engagement bright spots
-    eng_bits = []
-    if d["credgpt_users"] > 0:
-        eng_bits.append(f"CredGPT used by {d['credgpt_users']:,}")
-    if d["spinwheel_users"] > 0:
-        eng_bits.append(f"spinwheel played by {d['spinwheel_users']:,}")
-    if d["autopay_setups"] > 0:
-        eng_bits.append(f"{d['autopay_setups']:,} autopay setup{'s' if d['autopay_setups'] != 1 else ''}")
-    if eng_bits:
-        parts.append(", ".join(eng_bits).capitalize() + ".")
-
-    # Churn
-    if d["churned"] > 0:
-        parts.append(
-            f"⚠️ <strong style='color:#ef4444;'>{d['churned']} user{'s' if d['churned'] > 1 else ''} "
-            f"deleted their membership.</strong>"
-        )
-    else:
-        parts.append("No churn.")
-
-    return " ".join(parts)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
 # Component helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -235,7 +156,6 @@ def _build_html(report_date: datetime, d: dict, analysis: dict) -> str:
     exec_html       = markdown.markdown(analysis.get("executive_summary", ""))
     highlights_html = markdown.markdown(analysis.get("highlights", ""))
     watchlist_html  = markdown.markdown(analysis.get("watch_list", ""))
-    daily_summary   = _build_daily_summary(d)
     signups_table   = _build_signups_table(d["new_signups"])
 
     # ── Churn alert ─────────────────────────────────────────────────────────
@@ -280,18 +200,10 @@ def _build_html(report_date: datetime, d: dict, analysis: dict) -> str:
     </div>
   </div>
 
-  <!-- ── DAILY SUMMARY ───────────────────────────────────────────────────── -->
-  <div style="background:#0c1829;border-radius:12px;border:1px solid #1e3a5f;
-              padding:20px 24px;margin-bottom:20px;">
-    <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;
-                color:#3b82f6;margin-bottom:10px;">Yesterday at a Glance</div>
-    <p style="margin:0;font-size:15px;line-height:1.9;color:#cbd5e1;">{daily_summary}</p>
-  </div>
-
   {churn_banner}
 
-  <!-- ── EXECUTIVE SUMMARY (Claude) ─────────────────────────────────────── -->
-  {_section_header("Executive Summary", "📋")}
+  <!-- ── SUMMARY (Claude) ────────────────────────────────────────────────── -->
+  {_section_header("Summary", "📋")}
   {_card(f'<div style="color:#cbd5e1;font-size:14px;line-height:1.8;">{exec_html}</div>')}
 
   <!-- ── GROWTH FUNNEL ───────────────────────────────────────────────────── -->
@@ -310,13 +222,16 @@ def _build_html(report_date: datetime, d: dict, analysis: dict) -> str:
     </div>
     <div style="margin-top:14px;display:flex;gap:20px;flex-wrap:wrap;">
       <span style="font-size:12px;color:#475569;">
-        Install → signup: <strong style="color:{_pct_color(d["install_to_signup_rate"])}">{d["install_to_signup_rate"]}</strong>
+        * Installs = new downloads + existing installs + testing
       </span>
       <span style="font-size:12px;color:#475569;">
         Signup failed: <strong style="color:{"#ef4444" if d["signup_failed"] > 0 else "#475569"}">{d["signup_failed"]:,}</strong>
       </span>
       <span style="font-size:12px;color:#475569;">
         Onboarding drop-offs: <strong style="color:{"#f59e0b" if d["onboarding_dropoff"] > 0 else "#475569"}">{d["onboarding_dropoff"]:,}</strong>
+      </span>
+      <span style="font-size:12px;color:#475569;">
+        CredGPT / AI chat: <strong style="color:#6366f1;">{d["credgpt_users"]:,} users engaged</strong>
       </span>
     </div>
   ''')}
@@ -364,12 +279,8 @@ def _build_html(report_date: datetime, d: dict, analysis: dict) -> str:
   <!-- ── ENGAGEMENT ──────────────────────────────────────────────────────── -->
   {_section_header("Engagement", "🔥")}
   <div class="metrics-row">
-    {_big_metric("CredGPT Users", f"{d['credgpt_users']:,}", "used AI advisor", INDIGO, "🤖")}
-    {_big_metric("Spinwheel", f"{d['spinwheel_users']:,}", "played the wheel", AMBER, "🎡")}
-    {_big_metric("Rewards Redeemed", f"{d['reward_redeemed']:,}", "", GREEN, "🎁")}
-    {_big_metric("Notif Clicks", f"{d['notif_clicks']:,}", "push tap-throughs", BLUE, "🔔")}
-    {_big_metric("Debt Selectors", f"{d['select_debts']:,}", "engaged with debts", SLATE, "📋")}
-    {_big_metric("Income Added", f"{d['income_added']:,}", "", SLATE, "💵")}
+    {_big_metric("CredGPT / AI Chat Users", f"{d['credgpt_users']:,}", "unique users engaged with AI", INDIGO, "🤖")}
+    {_big_metric("AI Users % of DAU", f"{round(d['credgpt_users'] / d['dau'] * 100) if d['dau'] else 0}%", f"{d['credgpt_users']:,} of {d['dau']:,} active users", BLUE, "📊")}
   </div>
 
   <!-- ── HIGHLIGHTS + WATCH LIST ────────────────────────────────────────── -->
@@ -425,16 +336,10 @@ def _build_plaintext(report_date: datetime, d: dict, analysis: dict) -> str:
     )
     return f"""BON Credit Daily Report — {date_str}
 
-YESTERDAY AT A GLANCE
-{d['new_signup_count']} new signups from {d['installs']} installs ({d['install_to_signup_rate']} rate).
-{d['card_success']} cards linked, {d['bank_success']} banks linked, {full_activation} fully activated.
-{d['dau']} active users, avg {d['avg_session_mins']} min/session.
-Bill payments: {d['bill_pay_success']}/{d['bill_pay_initiated']} ({d['bill_pay_success_rate']}).
-Churn: {d['churned']}.
-
 GROWTH FUNNEL
-Installs {d['installs']} → Started {d['signup_started']} → Signed up {d['new_signup_count']} ({d['started_to_completed_rate']}) → Onboarded {d['onboarding_complete']} ({d['signup_to_onboarding_rate']})
+Installs {d['installs']} (new downloads + existing installs + testing) → Started {d['signup_started']} → Signed up {d['new_signup_count']} ({d['started_to_completed_rate']}) → Onboarded {d['onboarding_complete']} ({d['signup_to_onboarding_rate']})
 Failed: {d['signup_failed']} | Drop-offs: {d['onboarding_dropoff']}
+CredGPT / AI chat: {d['credgpt_users']} users engaged
 
 ACTIVATION
 Cards: {d['card_success']} linked / {d['card_failed']} failed ({d['card_success_rate']})
@@ -446,11 +351,11 @@ PAYMENTS
 
 ENGAGEMENT
 DAU: {d['dau']} | Avg session: {d['avg_session_mins']} min
-CredGPT: {d['credgpt_users']} | Spinwheel: {d['spinwheel_users']} | Rewards: {d['reward_redeemed']} | Notif clicks: {d['notif_clicks']}
+CredGPT / AI Chat: {d['credgpt_users']} users ({round(d['credgpt_users'] / d['dau'] * 100) if d['dau'] else 0}% of DAU)
 
 CHURN: {d['churned']}
 
-EXECUTIVE SUMMARY
+SUMMARY
 {analysis.get('executive_summary', '')}
 
 HIGHLIGHTS
