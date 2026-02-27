@@ -6,6 +6,7 @@ One export call → everything derived from it. No separate segmentation calls n
 
 import requests
 import gzip
+import zipfile
 import json
 import io
 import os
@@ -94,14 +95,43 @@ class AmplitudeClient:
                 resp.raise_for_status()
 
                 events = []
-                with gzip.GzipFile(fileobj=io.BytesIO(resp.content)) as gz:
-                    for line in gz:
-                        line = line.strip()
-                        if line:
-                            try:
-                                events.append(json.loads(line))
-                            except json.JSONDecodeError:
-                                continue
+                content = resp.content
+
+                # Amplitude returns a ZIP containing one or more gzipped NDJSON files
+                if content[:2] == b'PK':
+                    with zipfile.ZipFile(io.BytesIO(content)) as zf:
+                        for name in zf.namelist():
+                            with zf.open(name) as zipped_file:
+                                raw = zipped_file.read()
+                                # Each file inside the zip is gzip-compressed
+                                try:
+                                    with gzip.GzipFile(fileobj=io.BytesIO(raw)) as gz:
+                                        for line in gz:
+                                            line = line.strip()
+                                            if line:
+                                                try:
+                                                    events.append(json.loads(line))
+                                                except json.JSONDecodeError:
+                                                    continue
+                                except gzip.BadGzipFile:
+                                    # Some entries may be plain NDJSON
+                                    for line in raw.splitlines():
+                                        line = line.strip()
+                                        if line:
+                                            try:
+                                                events.append(json.loads(line))
+                                            except json.JSONDecodeError:
+                                                continue
+                else:
+                    # Fallback: plain gzip
+                    with gzip.GzipFile(fileobj=io.BytesIO(content)) as gz:
+                        for line in gz:
+                            line = line.strip()
+                            if line:
+                                try:
+                                    events.append(json.loads(line))
+                                except json.JSONDecodeError:
+                                    continue
 
                 print(f"[INFO] Fetched {len(events):,} raw events.")
                 return events
