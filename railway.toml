@@ -1,0 +1,15 @@
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+# Runs main.py once at startup — Railway cron handles the daily schedule
+startCommand = "python main.py"
+restartPolicyType = "NEVER"
+
+# ⚠️  IMPORTANT: Set up a Railway Cron job via the Railway dashboard:
+#
+#   Service → Settings → Cron → Add Cron Schedule
+#   Cron expression:  0 16 * * *
+#   This fires at 16:00 UTC = 8:00 AM PST (adjust to 15:00 UTC in summer PDT)
+#
+#   Set the cron command to:  python main.py
