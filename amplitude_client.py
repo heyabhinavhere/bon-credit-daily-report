@@ -227,7 +227,8 @@ class AmplitudeClient:
             raw_counts[et] += 1
 
             # Session windows for time-spent
-            if sid and t:
+            # sid == -1 means Amplitude out-of-session event — skip it
+            if sid and sid != -1 and t:
                 u["session_ids"].add(sid)
                 win = u["session_windows"]
                 if sid not in win:
@@ -378,10 +379,12 @@ class AmplitudeClient:
             "card_success":                 c("card_success"),
             "card_failed":                  c("card_failed"),
             "card_success_rate":            pct(c("card_success"), c("card_initiated")),
+            "total_cards_linked":           sum(u["cards_count"] for u in users.values()),
             "bank_initiated":               c("bank_initiated"),
             "bank_success":                 c("bank_success"),
             "bank_failed":                  c("bank_failed"),
             "bank_success_rate":            pct(c("bank_success"), c("bank_initiated")),
+            "total_banks_linked":           sum(u["banks_count"] for u in users.values()),
             "autopay_setups":               c("autopay_setup"),
             "income_added":                 c("income_added"),
             "payer_verified":               c("payer_verified"),

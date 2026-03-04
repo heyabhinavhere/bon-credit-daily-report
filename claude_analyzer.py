@@ -149,11 +149,15 @@ Rules:
             "Content-Type": "application/json",
         },
         json={
-            "model": "anthropic/claude-sonnet-4-5",
+            "model": "anthropic/claude-sonnet-4-5-20250929",
             "max_tokens": 2000,
             "messages": [{"role": "user", "content": prompt}],
         },
+        timeout=60,
     )
+
+    if not response.ok:
+        print(f"[ERROR] OpenRouter returned HTTP {response.status_code}: {response.text[:500]}")
     response.raise_for_status()
 
     raw_text = response.json()["choices"][0]["message"]["content"]
