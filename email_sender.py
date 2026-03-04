@@ -218,9 +218,8 @@ def _build_html(report_date: datetime, d: dict, analysis: dict) -> str:
           </td></tr>
         </table>"""
 
-    # ── Funnel steps (no Onboarded) ──────────────────────────────────────────
+    # ── Funnel steps ─────────────────────────────────────────────────────────
     funnel = _funnel_row([
-        ("Installs",    d["installs"],        ""),
         ("Started",     d["signup_started"],   ""),
         ("Signed Up",   d["signup_completed"], d["started_to_completed_rate"]),
         ("Card Linked", d["card_success"],     ""),
@@ -232,7 +231,7 @@ def _build_html(report_date: datetime, d: dict, analysis: dict) -> str:
 
     # ── Metric rows ──────────────────────────────────────────────────────────
     daily_row1 = _metrics_row([
-        _metric_card("Daily Active Users", f"{d['dau']:,}",             f"Avg {d['avg_session_mins']} min/session", BLUE,   "📱"),
+        _metric_card("Daily Active Users", f"{d['dau']:,}",             "",                                         BLUE,   "📱"),
         _metric_card("New Signups",        f"{d['new_signup_count']:,}","",                                         INDIGO, "👤"),
         _metric_card("Cards Linked",       f"{d['card_success']:,}",    f"{d['card_success_rate']} success rate",   GREEN,  "💳"),
     ])
@@ -329,13 +328,11 @@ def _build_html(report_date: datetime, d: dict, analysis: dict) -> str:
   <tr><td>
     {_card(f'''
       <div style="font-size:12px;color:{MUTED};margin-bottom:14px;">
-        Install → signup → activated
+        Signup → activated
       </div>
       {funnel}
       <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:14px;">
         <tr><td style="font-size:12px;color:{MUTED};line-height:1.8;">
-          * Installs = new downloads + existing installs + testing
-          &nbsp;&nbsp;·&nbsp;&nbsp;
           Signup failed: <strong style="color:{fail_color};">{d["signup_failed"]:,}</strong>
           &nbsp;&nbsp;·&nbsp;&nbsp;
           Onboarding drop-offs: <strong style="color:{drop_color};">{d["onboarding_dropoff"]:,}</strong>
