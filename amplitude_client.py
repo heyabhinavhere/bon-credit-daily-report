@@ -227,8 +227,8 @@ class AmplitudeClient:
             raw_counts[et] += 1
 
             # Session windows for time-spent
-            # sid == -1 means Amplitude out-of-session event — skip it
-            if sid and sid != -1 and t:
+            # Amplitude uses -1 (int or str) for out-of-session events — skip both
+            if sid and str(sid) != "-1" and t:
                 u["session_ids"].add(sid)
                 win = u["session_windows"]
                 if sid not in win:
