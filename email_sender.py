@@ -345,8 +345,8 @@ def _build_html(report_date: datetime, d: dict, analysis: dict) -> str:
         <tr><td style="font-size:12px;color:{MUTED};line-height:1.8;">
           Signup failed: <strong style="color:{fail_color};">{d["signup_failed"]:,}</strong>
           &nbsp;&nbsp;·&nbsp;&nbsp;
-          Onboarding drop-offs: <strong style="color:{drop_color};">{d["onboarding_dropoff"]:,}</strong>
-          &nbsp;&nbsp;·&nbsp;&nbsp;
+          # Onboarding drop-offs: <strong style="color:{drop_color};">{d["onboarding_dropoff"]:,}</strong>
+          # &nbsp;&nbsp;·&nbsp;&nbsp;
           CredGPT / AI chat: <strong style="color:{INDIGO};">{d["credgpt_users"]:,} users engaged</strong>
         </td></tr>
       </table>
