@@ -261,34 +261,44 @@ def _build_html(report_date: datetime, d: dict, analysis: dict) -> str:
     ])
 
     # ── Activation health ─────────────────────────────────────────────────────
-    card_col = _card(f"""
-        <div style="font-size:13px;font-weight:700;color:{MUTED};margin-bottom:14px;">Card Linking</div>
-        {_rate_bar("Add Card Flow", d["card_success"], d["card_failed"], d["card_success_rate"])}
-        <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:10px;">
-          <tr>
-            <td style="font-size:12px;color:{MUTED};">Initiated: <strong style="color:{TEXT};">{d["card_initiated"]:,}</strong> users</td>
-            <td align="right" style="font-size:12px;color:{MUTED};">
-              <strong style="color:{GREEN};">{d["card_success"]:,} users</strong> linked
-              &nbsp;·&nbsp;
-              <strong style="color:{TEXT};">{d["total_cards_linked"]:,} total cards</strong>
-            </td>
-          </tr>
-        </table>
-    """)
-    bank_col = _card(f"""
-        <div style="font-size:13px;font-weight:700;color:{MUTED};margin-bottom:14px;">Bank Linking</div>
-        {_rate_bar("Add Bank Flow", d["bank_success"], d["bank_failed"], d["bank_success_rate"])}
-        <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:10px;">
-          <tr>
-            <td style="font-size:12px;color:{MUTED};">Initiated: <strong style="color:{TEXT};">{d["bank_initiated"]:,}</strong> users</td>
-            <td align="right" style="font-size:12px;color:{MUTED};">
-              <strong style="color:{GREEN};">{d["bank_success"]:,} users</strong> linked
-              &nbsp;·&nbsp;
-              <strong style="color:{TEXT};">{d["total_banks_linked"]:,} total banks</strong>
-            </td>
-          </tr>
-        </table>
-    """)
+    def _activation_stats(title: str, initiated: int, attempts: int, success: int,
+                          total_linked: int, failed: int) -> str:
+        rows = [
+            ("Unique users tried",                             str(initiated),   TEXT),
+            ("Total attempts",                                 str(attempts),    TEXT),
+            ("Unique users successful",                        str(success),     GREEN if success > 0 else MUTED),
+            (f"Total {'cards' if 'Card' in title else 'banks'} added", str(total_linked), GREEN if total_linked > 0 else MUTED),
+            ("Technical error (Plaid / API failure, not drop-offs)", str(failed), RED if failed > 0 else MUTED),
+        ]
+        stat_rows = ""
+        for i, (label, val, color) in enumerate(rows):
+            bg = BG if i % 2 == 0 else CARD
+            stat_rows += f"""
+            <tr style="background:{bg};">
+              <td style="padding:9px 12px;font-size:12px;color:{MUTED};">{label}</td>
+              <td style="padding:9px 12px;font-size:14px;font-weight:700;color:{color};text-align:right;">{val}</td>
+            </tr>"""
+        return _card(f"""
+            <div style="font-size:13px;font-weight:700;color:{TEXT};margin-bottom:14px;">{title}</div>
+            <table width="100%" cellpadding="0" cellspacing="0"
+                   style="border-collapse:collapse;border-radius:8px;overflow:hidden;border:1px solid {BORDER};">
+              {stat_rows}
+            </table>
+        """)
+
+    card_attempts = d.get("total_card_attempts", d["card_initiated"])
+    bank_attempts = d.get("total_bank_attempts", d["bank_initiated"])
+
+    card_col = _activation_stats(
+        "💳 Card Linking",
+        d["card_initiated"], card_attempts, d["card_success"],
+        d["total_cards_linked"], d["card_failed"],
+    )
+    bank_col = _activation_stats(
+        "🏦 Bank Linking",
+        d["bank_initiated"], bank_attempts, d["bank_success"],
+        d["total_banks_linked"], d["bank_failed"],
+    )
 
     html = f"""<!DOCTYPE html>
 <html>

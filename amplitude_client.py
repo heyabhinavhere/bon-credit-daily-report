@@ -74,10 +74,22 @@ class AmplitudeClient:
     # ─────────────────────────────────────────────────────────────────────────
 
     def export_events(self, date: datetime) -> list:
-        """Download all events for a date via the Amplitude Export API."""
-        start = date.strftime("%Y%m%dT00")
-        end   = date.strftime("%Y%m%dT23")
-        url   = f"{self.base_url}/export"
+        """Download all events for a PST/PDT date via the Amplitude Export API.
+        Converts the local PST/PDT day to UTC for the Amplitude export window.
+        """
+        try:
+            from zoneinfo import ZoneInfo
+            tz  = ZoneInfo("America/Los_Angeles")
+            utc = ZoneInfo("UTC")
+            start_local = datetime(date.year, date.month, date.day,  0, 0, 0, tzinfo=tz)
+            end_local   = datetime(date.year, date.month, date.day, 23, 59, 59, tzinfo=tz)
+            start = start_local.astimezone(utc).strftime("%Y%m%dT%H")
+            end   = end_local.astimezone(utc).strftime("%Y%m%dT%H")
+        except Exception as e:
+            print(f"[WARN] Timezone conversion failed ({e}), falling back to UTC window.")
+            start = date.strftime("%Y%m%dT00")
+            end   = date.strftime("%Y%m%dT23")
+        url    = f"{self.base_url}/export"
         params = {"start": start, "end": end}
 
         print(f"[INFO] Exporting events for {date.strftime('%Y-%m-%d')}...")
@@ -380,11 +392,13 @@ class AmplitudeClient:
             "card_failed":                  c("card_failed"),
             "card_success_rate":            pct(c("card_success"), c("card_initiated")),
             "total_cards_linked":           sum(u["cards_count"] for u in users.values()),
+            "total_card_attempts":          raw_counts[self.card_initiate],
             "bank_initiated":               c("bank_initiated"),
             "bank_success":                 c("bank_success"),
             "bank_failed":                  c("bank_failed"),
             "bank_success_rate":            pct(c("bank_success"), c("bank_initiated")),
             "total_banks_linked":           sum(u["banks_count"] for u in users.values()),
+            "total_bank_attempts":          raw_counts[self.bank_initiate],
             "autopay_setups":               c("autopay_setup"),
             "income_added":                 c("income_added"),
             "payer_verified":               c("payer_verified"),
